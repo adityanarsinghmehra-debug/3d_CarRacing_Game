@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Neon Rush 3D — Car Racing</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;700;800&display=swap" rel="stylesheet" />
+  <style>
+    * { touch-action: manipulation; user-select: none; -webkit-user-select: none; }
+    body { font-family: 'Inter', sans-serif; margin: 0; overflow: hidden; background: #070514; }
+    #game-container { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
+    canvas { display: block; width: 100%; height: 100%; }
+  </style>
+</head>
+<body class="text-white">
+  <div id="game-container">
+    <!-- Top HUD -->
+    <div class="absolute top-0 left-0 right-0 z-20 p-3 sm:p-4 flex items-start justify-between pointer-events-none">
+      <div class="bg-slate-950/70 backdrop-blur-md border border-indigo-500/30 rounded-2xl px-3.5 py-2 space-y-0.5 shadow-lg">
+        <div class="text-[11px] uppercase tracking-wider text-indigo-300 font-bold">Score</div>
+        <div id="hud-score" class="text-xl sm:text-2xl font-extrabold text-white tabular-nums">0</div>
+        <div class="text-[11px] text-slate-400">Best: <span id="hud-best" class="text-amber-300 font-bold">0</span></div>
+      </div>
+
+      <div class="flex flex-col items-end gap-2 pointer-events-auto">
+        <div class="flex items-center gap-1.5">
+          <button id="btn-mute" type="button"
+            class="bg-slate-950/75 backdrop-blur-md border border-slate-700/80 hover:border-indigo-400 px-3 py-1.5 rounded-xl text-xs font-bold text-slate-200 transition-colors">
+            Sound: ON
+          </button>
+          <button id="btn-pause" type="button"
+            class="bg-slate-950/75 backdrop-blur-md border border-slate-700/80 hover:border-indigo-400 px-3 py-1.5 rounded-xl text-xs font-bold text-slate-200 transition-colors">
+            Pause
+          </button>
+        </div>
+        <div class="bg-slate-950/70 backdrop-blur-md border border-cyan-500/30 rounded-xl px-3 py-1.5 text-right">
+          <div id="hud-speed" class="text-sm sm:text-base font-extrabold text-cyan-300 tabular-nums">0 KM/H</div>
+          <div class="w-24 h-1.5 bg-slate-800 rounded-full overflow-hidden mt-1">
+            <div id="hud-nitro" class="h-full bg-gradient-to-r from-cyan-400 to-fuchsia-500 transition-all duration-100" style="width: 100%"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- On-Screen Mobile Touch Controls -->
+    <div id="touch-controls" class="hidden absolute bottom-5 left-0 right-0 z-20 px-4 flex items-center justify-between pointer-events-none">
+      <div class="flex gap-3 pointer-events-auto">
+        <button id="btn-left" type="button"
+          class="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-slate-950/70 active:bg-indigo-600/80 backdrop-blur-md border border-indigo-400/40 flex items-center justify-center text-2xl font-extrabold shadow-xl">
+          ◀
+        </button>
+        <button id="btn-right" type="button"
+          class="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-slate-950/70 active:bg-indigo-600/80 backdrop-blur-md border border-indigo-400/40 flex items-center justify-center text-2xl font-extrabold shadow-xl">
+          ▶
+        </button>
+      </div>
+      <button id="btn-nitro" type="button"
+        class="pointer-events-auto h-16 sm:h-20 px-5 sm:px-7 rounded-2xl bg-gradient-to-r from-cyan-500 to-fuchsia-600 active:scale-95 text-white font-extrabold text-sm sm:text-base tracking-wide shadow-xl border border-white/25">
+        NITRO
+      </button>
+    </div>
+
+    <!-- Start / Pause / Game Over Overlay -->
+    <div id="overlay" class="absolute inset-0 z-30 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
+      <div class="bg-slate-900/95 border border-indigo-500/40 rounded-3xl p-6 sm:p-8 max-w-sm w-full text-center space-y-5 shadow-2xl">
+        <div>
+          <span class="inline-block px-3 py-1 rounded-full bg-indigo-500/20 border border-indigo-400/40 text-indigo-300 text-xs font-bold tracking-wider uppercase mb-2">
+            WebGL 3D Racer
+          </span>
+          <h1 id="overlay-title" class="text-2xl sm:text-3xl font-extrabold bg-gradient-to-r from-cyan-300 via-white to-fuchsia-400 bg-clip-text text-transparent">
+            NEON RUSH 3D
+          </h1>
+          <p id="overlay-sub" class="text-xs sm:text-sm text-slate-300 mt-1.5">
+            Dodge oncoming traffic, grab glowing orbs, and hit NITRO for max speed!
+          </p>
+        </div>
+
+        <div id="final-stats" class="hidden bg-slate-950/80 border border-slate-800 rounded-2xl p-3.5 grid grid-cols-2 gap-2 text-center">
+          <div>
+            <div class="text-[11px] text-slate-400 uppercase font-bold">Score</div>
+            <div id="stat-score" class="text-xl font-extrabold text-white">0</div>
+          </div>
+          <div>
+            <div class="text-[11px] text-slate-400 uppercase font-bold">Best</div>
+            <div id="stat-best" class="text-xl font-extrabold text-amber-300">0</div>
+          </div>
+        </div>
+
+        <button id="btn-start" type="button"
+          class="w-full py-3.5 rounded-2xl bg-gradient-to-r from-indigo-500 via-fuchsia-500 to-cyan-500 hover:opacity-95 active:scale-95 text-white font-extrabold text-base tracking-wide shadow-lg transition-all">
+          START RACE
+        </button>
+
+        <p class="text-[11px] text-slate-400">
+          Phone: Tap ◀ ▶ &amp; NITRO · PC: Arrow Keys / A D + Space
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // =========================================================================
+    // 1. SYNTHESIZED SOUND EFFECTS (Web Audio API — zero external audio files)
+    // =========================================================================
+    let audioCtx = null;
+    let isMuted = false;
+    let engineOsc = null;
+    let engineGain = null;
+
+    function initAudio() {
+      if (audioCtx) return;
+      try {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return;
+        audioCtx = new AC();
+        engineOsc = audioCtx.createOscillator();
+        engineGain = audioCtx.createGain();
+        engineOsc.type = "sawtooth";
+        engineOsc.frequency.value = 65;
+        engineGain.gain.value = 0;
+        engineOsc.connect(engineGain);
+        engineGain.connect(audioCtx.destination);
+        engineOsc.start();
+      } catch (e) {}
+    }
+
+    function updateEngineSound(speedRatio, active) {
+      if (!audioCtx || !engineOsc || !engineGain) return;
+      if (isMuted || !active) {
+        engineGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.05);
+        return;
+      }
+      engineOsc.frequency.setTargetAtTime(60 + speedRatio * 140, audioCtx.currentTime, 0.05);
+      engineGain.gain.setTargetAtTime(0.035, audioCtx.currentTime, 0.05);
+    }
+
+    function playTone(freq, dur, type = "sine", vol = 0.12) {
+      if (isMuted || !audioCtx) return;
+      try {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + dur);
+      } catch (e) {}
+    }
+
+    // =========================================================================
+    // 2. THREE.JS 3D SCENE, LIGHTING & PROCEDURAL HIGH-GRAPHICS MATERIALS
+    // =========================================================================
+    let scene, camera, renderer, playerCar, nitroFlameL, nitroFlameR, underGlow;
+    let roadTex, roadMesh;
+    const laneX = [-3.2, 0, 3.2];
+    let targetLane = 1;
+    let playerX = 0;
+    let gameState = "menu"; // "menu" | "playing" | "paused" | "gameover"
+    let animFrameId = null;
+
+    let score = 0;
+    let bestScore = 0;
+    try { bestScore = parseInt(localStorage.getItem("neon_rush_best_v1") || "0", 10) || 0; } catch (e) {}
+
+    let baseSpeed = 0.55;
+    let nitroFuel = 100;
+    let isBoosting = false;
+    let lastTime = 0;
+
+    const trafficCars = [];
+    const orbs = [];
+    const arches = [];
+    const buildings = [];
+
+    function createRoadTexture() {
+      const c = document.createElement("canvas");
+      c.width = 512;
+      c.height = 512;
+      const ctx = c.getContext("2d");
+
+      // Dark metallic asphalt
+      ctx.fillStyle = "#111827";
+      ctx.fillRect(0, 0, 512, 512);
+
+      // Subtle asphalt grain
+      for (let i = 0; i < 1800; i++) {
+        ctx.fillStyle = Math.random() > 0.5 ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.2)";
+        ctx.fillRect(Math.random() * 512, Math.random() * 512, 2, 4);
+      }
+
+      // Glowing neon edge lines
+      ctx.fillStyle = "#22d3ee";
+      ctx.fillRect(14, 0, 8, 512);
+      ctx.fillStyle = "#e879f9";
+      ctx.fillRect(490, 0, 8, 512);
+
+      // Dashed lane dividers
+      ctx.fillStyle = "#e2e8f0";
+      for (let y = 0; y < 512; y += 64) {
+        ctx.fillRect(172, y + 10, 6, 36);
+        ctx.fillRect(334, y + 10, 6, 36);
+      }
+
+      const tex = new THREE.CanvasTexture(c);
+      tex.wrapS = THREE.RepeatWrapping;
+      tex.wrapT = THREE.RepeatWrapping;
+      tex.repeat.set(1, 14);
+      return tex;
+    }
+
+    function buildCarMesh(bodyColor, isPlayer = false) {
+      const group = new THREE.Group();
+
+      // Main chassis
+      const bodyGeo = new THREE.BoxGeometry(1.75, 0.55, 3.6);
+      const bodyMat = new THREE.MeshStandardMaterial({
+        color: bodyColor,
+        metalness: 0.75,
+        roughness: 0.22
+      });
+      const body = new THREE.Mesh(bodyGeo, bodyMat);
+      body.position.y = 0.52;
+      body.castShadow = true;
+      group.add(body);
+
+      // Sleek cabin
+      const cabinGeo = new THREE.BoxGeometry(1.38, 0.45, 1.75);
+      const cabinMat = new THREE.MeshStandardMaterial({
+        color: 0x0f172a,
+        metalness: 0.9,
+        roughness: 0.1
+      });
+      const cabin = new THREE.Mesh(cabinGeo, cabinMat);
+      cabin.position.set(0, 0.98, -0.15);
+      cabin.castShadow = true;
+      group.add(cabin);
+
+      // Rear spoiler for player supercar
+      if (isPlayer) {
+        const wing = new THREE.Mesh(
+          new THREE.BoxGeometry(1.7, 0.08, 0.35),
+          new THREE.MeshStandardMaterial({ color: 0x22d3ee, emissive: 0x0891b2, metalness: 0.8, roughness: 0.2 })
+        );
+        wing.position.set(0, 1.05, 1.55);
+        group.add(wing);
+
+        // Twin Nitro exhaust flames
+        const flameGeo = new THREE.ConeGeometry(0.18, 0.9, 8);
+        flameGeo.rotateX(Math.PI / 2);
+        const flameMat = new THREE.MeshBasicMaterial({ color: 0x22d3ee });
+        nitroFlameL = new THREE.Mesh(flameGeo, flameMat);
+        nitroFlameR = new THREE.Mesh(flameGeo, flameMat);
+        nitroFlameL.position.set(-0.45, 0.45, 2.2);
+        nitroFlameR.position.set(0.45, 0.45, 2.2);
+        nitroFlameL.visible = false;
+        nitroFlameR.visible = false;
+        group.add(nitroFlameL, nitroFlameR);
+      }
+
+      // Wheels
+      const wheelGeo = new THREE.CylinderGeometry(0.35, 0.35, 0.28, 14);
+      wheelGeo.rotateZ(Math.PI / 2);
+      const wheelMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.6 });
+      const wheelPositions = [
+        [-0.9, 0.35, -1.1], [0.9, 0.35, -1.1],
+        [-0.9, 0.35, 1.1],  [0.9, 0.35, 1.1]
+      ];
+      wheelPositions.forEach(([wx, wy, wz]) => {
+        const w = new THREE.Mesh(wheelGeo, wheelMat);
+        w.position.set(wx, wy, wz);
+        group.add(w);
+      });
+
+      // Headlights & Taillights
+      const headMat = new THREE.MeshBasicMaterial({ color: isPlayer ? 0x67e8f9 : 0xfef08a });
+      const tailMat = new THREE.MeshBasicMaterial({ color: 0xf43f5e });
+      [-0.6, 0.6].forEach(lx => {
+        const h = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.14, 0.1), headMat);
+        h.position.set(lx, 0.52, -1.81);
+        const t = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.14, 0.1), tailMat);
+        t.position.set(lx, 0.54, 1.81);
+        group.add(h, t);
+      });
+
+      return group;
+    }
+
+    function init3D() {
+      const container = document.getElementById("game-container");
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x09051a);
+      scene.fog = new THREE.FogExp2(0x140a2e, 0.014);
+
+      camera = new THREE.PerspectiveCamera(62, container.clientWidth / container.clientHeight, 0.1, 220);
+      camera.position.set(0, 4.2, 8.5);
+      camera.lookAt(0, 1.2, -10);
+
+      renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+      renderer.setSize(container.clientWidth, container.clientHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      renderer.shadowMap.enabled = true;
+      container.insertBefore(renderer.domElement, container.firstChild);
+
+      // Sunset & Neon Lighting
+      const hemi = new THREE.HemisphereLight(0xa5b4fc, 0x311042, 0.95);
+      scene.add(hemi);
+
+      const dirLight = new THREE.DirectionalLight(0xf472b6, 1.35);
+      dirLight.position.set(12, 22, 10);
+      dirLight.castShadow = true;
+      scene.add(dirLight);
+
+      // Glowing Sun on the horizon
+      const sun = new THREE.Mesh(
+        new THREE.CircleGeometry(18, 32),
+        new THREE.MeshBasicMaterial({ color: 0xf43f5e })
+      );
+      sun.position.set(0, 14, -140);
+      scene.add(sun);
+
+      // Road
+      roadTex = createRoadTexture();
+      roadMesh = new THREE.Mesh(
+        new THREE.PlaneGeometry(11.2, 240),
+        new THREE.MeshStandardMaterial({ map: roadTex, roughness: 0.65, metalness: 0.25 })
+      );
+      roadMesh.rotation.x = -Math.PI / 2;
+      roadMesh.position.z = -90;
+      roadMesh.receiveShadow = true;
+      scene.add(roadMesh);
+
+      // Ground plane beside road
+      const ground = new THREE.Mesh(
+        new THREE.PlaneGeometry(220, 240),
+        new THREE.MeshStandardMaterial({ color: 0x090518, roughness: 0.9 })
+      );
+      ground.rotation.x = -Math.PI / 2;
+      ground.position.set(0, -0.05, -90);
+      scene.add(ground);
+
+      // Player Supercar + Underglow
+      playerCar = buildCarMesh(0x4f46e5, true);
+      playerCar.position.set(0, 0, 1.5);
+      scene.add(playerCar);
+
+      underGlow = new THREE.PointLight(0x22d3ee, 2.2, 8);
+      underGlow.position.set(0, 0.4, 1.5);
+      scene.add(underGlow);
+
+      // Neon Highway Arches
+      for (let i = 0; i < 8; i++) {
+        const arch = new THREE.Group();
+        const pillarGeo = new THREE.BoxGeometry(0.28, 5.5, 0.28);
+        const neonMat = new THREE.MeshBasicMaterial({ color: i % 2 === 0 ? 0x22d3ee : 0xe879f9 });
+        const pL = new THREE.Mesh(pillarGeo, neonMat);
+        const pR = new THREE.Mesh(pillarGeo, neonMat);
+        const top = new THREE.Mesh(new THREE.BoxGeometry(12.2, 0.25, 0.28), neonMat);
+        pL.position.set(-5.9, 2.75, 0);
+        pR.position.set(5.9, 2.75, 0);
+        top.position.set(0, 5.5, 0);
+        arch.add(pL, pR, top);
+        arch.position.z = -i * 26;
+        scene.add(arch);
+        arches.push(arch);
+      }
+
+      // Distant Cyber Skyline Buildings
+      const bMat = new THREE.MeshStandardMaterial({ color: 0x1e1b4b, roughness: 0.5, metalness: 0.6 });
+      for (let i = 0; i < 24; i++) {
+        const h = 8 + Math.random() * 24;
+        const b = new THREE.Mesh(new THREE.BoxGeometry(4 + Math.random() * 4, h, 4 + Math.random() * 4), bMat);
+        const side = i % 2 === 0 ? -1 : 1;
+        b.position.set(side * (11 + Math.random() * 16), h / 2, -i * 9);
+        scene.add(b);
+        buildings.push(b);
+      }
+
+      window.addEventListener("resize", onResize);
+      renderer.render(scene, camera);
+    }
+
+    function onResize() {
+      const container = document.getElementById("game-container");
+      if (!renderer || !camera || !container) return;
+      camera.aspect = container.clientWidth / container.clientHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(container.clientWidth, container.clientHeight);
+    }
+
+    function spawnTraffic() {
+      const colors = [0xe11d48, 0xf59e0b, 0x10b981, 0xec4899, 0x38bdf8];
+      const car = buildCarMesh(colors[Math.floor(Math.random() * colors.length)], false);
+      const lane = Math.floor(Math.random() * 3);
+      car.position.set(laneX[lane], 0, -130 - Math.random() * 30);
+      car.userData = { speed: 0.18 + Math.random() * 0.14 };
+      scene.add(car);
+      trafficCars.push(car);
+    }
+
+    function spawnOrb() {
+      const orb = new THREE.Mesh(
+        new THREE.OctahedronGeometry(0.55, 0),
+        new THREE.MeshBasicMaterial({ color: 0x22d3ee, wireframe: false })
+      );
+      const lane = Math.floor(Math.random() * 3);
+      orb.position.set(laneX[lane], 0.9, -125);
+      scene.add(orb);
+      orbs.push(orb);
+    }
+
+    function clearEntities() {
+      while (trafficCars.length) scene.remove(trafficCars.pop());
+      while (orbs.length) scene.remove(orbs.pop());
+    }
+
+    function startRace() {
+      initAudio();
+      if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
+      if (animFrameId) { cancelAnimationFrame(animFrameId); animFrameId = null; }
+
+      clearEntities();
+      score = 0;
+      baseSpeed = 0.58;
+      nitroFuel = 100;
+      isBoosting = false;
+      targetLane = 1;
+      playerX = 0;
+      playerCar.position.x = 0;
+      playerCar.rotation.z = 0;
+
+      document.getElementById("overlay").classList.add("hidden");
+      document.getElementById("final-stats").classList.add("hidden");
+      document.getElementById("touch-controls").classList.remove("hidden");
+      document.getElementById("hud-best").textContent = bestScore;
+
+      gameState = "playing";
+      lastTime = performance.now();
+      animFrameId = requestAnimationFrame(gameLoop);
+    }
+
+    function triggerGameOver() {
+      gameState = "gameover";
+      isBoosting = false;
+      updateEngineSound(0, false);
+      playTone(110, 0.35, "sawtooth", 0.2);
+
+      const finalScore = Math.floor(score);
+      if (finalScore > bestScore) {
+        bestScore = finalScore;
+        try { localStorage.setItem("neon_rush_best_v1", String(bestScore)); } catch (e) {}
+      }
+
+      document.getElementById("hud-best").textContent = bestScore;
+      document.getElementById("stat-score").textContent = finalScore;
+      document.getElementById("stat-best").textContent = bestScore;
+      document.getElementById("overlay-title").textContent = "CRASHED!";
+      document.getElementById("overlay-sub").textContent = "Great run! Tap below to race again.";
+      document.getElementById("btn-start").textContent = "RACE AGAIN";
+      document.getElementById("final-stats").classList.remove("hidden");
+      document.getElementById("touch-controls").classList.add("hidden");
+      document.getElementById("overlay").classList.remove("hidden");
+    }
+
+    function steer(dir) {
+      if (gameState !== "playing") return;
+      targetLane = Math.max(0, Math.min(2, targetLane + dir));
+      playTone(320, 0.05, "triangle", 0.05);
+    }
+
+    function gameLoop(now) {
+      if (gameState !== "playing") return;
+      const dt = Math.min((now - lastTime) / 16.667, 2.5);
+      lastTime = now;
+
+      // Boost logic
+      const boostingNow = isBoosting && nitroFuel > 1;
+      if (boostingNow) {
+        nitroFuel = Math.max(0, nitroFuel - 0.85 * dt);
+      } else {
+        nitroFuel = Math.min(100, nitroFuel + 0.16 * dt);
+      }
+
+      const currentSpeed = (baseSpeed + (boostingNow ? 0.45 : 0)) * dt;
+      baseSpeed = Math.min(1.25, baseSpeed + 0.00035 * dt);
+      score += currentSpeed * 3.5;
+
+      // Smooth steering & car tilt
+      const destX = laneX[targetLane];
+      const diffX = destX - playerX;
+      playerX += diffX * 0.16 * dt;
+      playerCar.position.x = playerX;
+      playerCar.rotation.z = -diffX * 0.08;
+      underGlow.position.x = playerX;
+
+      if (nitroFlameL && nitroFlameR) {
+        nitroFlameL.visible = boostingNow;
+        nitroFlameR.visible = boostingNow;
+        if (boostingNow) {
+          const s = 0.85 + Math.random() * 0.45;
+          nitroFlameL.scale.set(1, 1, s);
+          nitroFlameR.scale.set(1, 1, s);
+        }
+      }
+
+      // Dynamic FOV & Camera
+      camera.fov += ((boostingNow ? 74 : 62) - camera.fov) * 0.1;
+      camera.updateProjectionMatrix();
+
+      // Scroll road, arches & buildings
+      roadTex.offset.y -= currentSpeed * 0.055;
+      arches.forEach(a => {
+        a.position.z += currentSpeed;
+        if (a.position.z > 15) a.position.z -= 208;
+      });
+      buildings.forEach(b => {
+        b.position.z += currentSpeed;
+        if (b.position.z > 15) b.position.z -= 216;
+      });
+
+      // Spawn traffic & orbs
+      if (Math.random() < 0.025 * dt && trafficCars.length < 7) spawnTraffic();
+      if (Math.random() < 0.018 * dt && orbs.length < 4) spawnOrb();
+
+      // Move traffic & check collisions
+      for (let i = trafficCars.length - 1; i >= 0; i--) {
+        const tc = trafficCars[i];
+        tc.position.z += currentSpeed - tc.userData.speed * dt;
+        if (Math.abs(tc.position.z - playerCar.position.z) < 3.1 && Math.abs(tc.position.x - playerX) < 1.45) {
+          triggerGameOver();
+          return;
+        }
+        if (tc.position.z > 14) {
+          scene.remove(tc);
+          trafficCars.splice(i, 1);
+        }
+      }
+
+      // Move orbs & collect
+      for (let i = orbs.length - 1; i >= 0; i--) {
+        const o = orbs[i];
+        o.position.z += currentSpeed;
+        o.rotation.y += 0.08 * dt;
+        if (Math.abs(o.position.z - playerCar.position.z) < 2.0 && Math.abs(o.position.x - playerX) < 1.4) {
+          score += 50;
+          nitroFuel = Math.min(100, nitroFuel + 25);
+          playTone(760, 0.12, "sine", 0.12);
+          scene.remove(o);
+          orbs.splice(i, 1);
+          continue;
+        }
+        if (o.position.z > 14) {
+          scene.remove(o);
+          orbs.splice(i, 1);
+        }
+      }
+
+      // Update HUD & Engine Sound
+      const kmh = Math.floor((baseSpeed + (boostingNow ? 0.45 : 0)) * 220);
+      document.getElementById("hud-score").textContent = Math.floor(score);
+      document.getElementById("hud-speed").textContent = `${kmh} KM/H`;
+      document.getElementById("hud-nitro").style.width = `${Math.floor(nitroFuel)}%`;
+      updateEngineSound(Math.min(1, kmh / 320), true);
+
+      renderer.render(scene, camera);
+      animFrameId = requestAnimationFrame(gameLoop);
+    }
+
+    // Controls: Buttons, Swipe & Keyboard
+    document.getElementById("btn-start").addEventListener("click", startRace);
+    document.getElementById("btn-left").addEventListener("click", () => steer(-1));
+    document.getElementById("btn-right").addEventListener("click", () => steer(1));
+
+    const btnNitro = document.getElementById("btn-nitro");
+    btnNitro.addEventListener("touchstart", (e) => { e.preventDefault(); isBoosting = true; });
+    btnNitro.addEventListener("touchend", () => { isBoosting = false; });
+    btnNitro.addEventListener("mousedown", () => { isBoosting = true; });
+    btnNitro.addEventListener("mouseup", () => { isBoosting = false; });
+    btnNitro.addEventListener("mouseleave", () => { isBoosting = false; });
+
+    document.getElementById("btn-mute").addEventListener("click", (e) => {
+      isMuted = !isMuted;
+      e.target.textContent = isMuted ? "Sound: OFF" : "Sound: ON";
+      if (isMuted) updateEngineSound(0, false);
+    });
+
+    document.getElementById("btn-pause").addEventListener("click", (e) => {
+      if (gameState === "playing") {
+        gameState = "paused";
+        updateEngineSound(0, false);
+        e.target.textContent = "Resume";
+      } else if (gameState === "paused") {
+        gameState = "playing";
+        e.target.textContent = "Pause";
+        lastTime = performance.now();
+        animFrameId = requestAnimationFrame(gameLoop);
+      }
+    });
+
+    window.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowLeft" || e.key === "a" || e.key === "A") steer(-1);
+      if (e.key === "ArrowRight" || e.key === "d" || e.key === "D") steer(1);
+      if (e.key === " ") isBoosting = true;
+    });
+    window.addEventListener("keyup", (e) => {
+      if (e.key === " ") isBoosting = false;
+    });
+
+    // Swipe support on screen
+    let touchStartX = null;
+    window.addEventListener("touchstart", (e) => { touchStartX = e.touches[0].clientX; });
+    window.addEventListener("touchend", (e) => {
+      if (touchStartX === null) return;
+      const dx = e.changedTouches[0].clientX - touchStartX;
+      if (Math.abs(dx) > 40) steer(dx > 0 ? 1 : -1);
+      touchStartX = null;
+    });
+
+    window.onload = () => {
+      document.getElementById("hud-best").textContent = bestScore;
+      init3D();
+    };
+  </script>
+</body>
+</html>

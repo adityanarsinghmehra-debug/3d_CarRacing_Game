@@ -1,0 +1,28 @@
+<resources>
+    <string name="app_name">Neon Rush 3D</string>
+    <string name="edition_badge">APEX EDITION</string>
+    <string name="game_subtitle">Dodge oncoming traffic, collect energy orbs, and ignite NITRO on the midnight cyber highway.</string>
+    <string name="label_score">SCORE</string>
+    <string name="label_best">BEST</string>
+    <string name="label_top_speed">TOP SPEED</string>
+    <string name="label_orbs">ORBS</string>
+    <string name="label_races">RACES</string>
+    <string name="label_garage_livery">SELECT LIVERY</string>
+    <string name="action_start_race">START RACE</string>
+    <string name="action_race_again">RACE AGAIN</string>
+    <string name="action_resume">RESUME RACE</string>
+    <string name="action_restart">RESTART</string>
+    <string name="action_garage">GARAGE</string>
+    <string name="action_nitro">NITRO</string>
+    <string name="controls_hint">Swipe or tap pads to steer • Hold NITRO for hyper-boost</string>
+    <string name="paused_title">RACE PAUSED</string>
+    <string name="paused_subtitle">Telemetry locked. Ready when you are.</string>
+    <string name="gameover_title">IMPACT DETECTED</string>
+    <string name="gameover_subtitle">Telemetry debrief from your run</string>
+    <string name="new_record_badge">NEW RECORD</string>
+    <string name="cd_steer_left">Steer left</string>
+    <string name="cd_steer_right">Steer right</string>
+    <string name="cd_nitro_boost">Hold for nitro boost</string>
+    <string name="cd_toggle_sound">Toggle sound effects</string>
+    <string name="cd_pause_game">Pause or resume race</string>
+</resources>

@@ -1,0 +1,6 @@
+{
+  "name": "Neon Rush 3D",
+  "description": "Futuristic 3D neon highway car racing game with a sleek motorsport telemetry HUD, nitro boost, customizable supercar liveries, swipe and touch controls, and synthesized audio.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
